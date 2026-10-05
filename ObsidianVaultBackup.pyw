@@ -9,7 +9,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 APP_NAME = "Obsidian Vault Backup"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 APP_DIR_NAME = "ObsidianVaultBackup"
 
 
