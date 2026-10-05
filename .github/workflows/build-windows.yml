@@ -1,4 +1,4 @@
-name: Build Windows EXE
+name: Build Windows Package
 
 on:
   push:
@@ -25,22 +25,37 @@ jobs:
       - name: Install PyInstaller
         run: python -m pip install --upgrade pyinstaller
 
-      - name: Build EXE
-        run: pyinstaller --noconfirm --clean --onefile --windowed --name "Obsidian-Vault-Backup" "ObsidianVaultBackup.pyw"
+      - name: Build Windows app
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --onedir --windowed --noupx --version-file "version_info.txt" --manifest "app.manifest" --name "Obsidian-Vault-Backup" "ObsidianVaultBackup.pyw"
 
-      - name: Upload EXE artifact
+      - name: Create portable ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist/Obsidian-Vault-Backup/*" -DestinationPath "dist/Obsidian-Vault-Backup-v1.0.1-Windows.zip" -CompressionLevel Optimal
+
+      - name: Create SHA256 checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash "dist/Obsidian-Vault-Backup-v1.0.1-Windows.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  Obsidian-Vault-Backup-v1.0.1-Windows.zip" | Out-File -Encoding ascii "dist/SHA256SUMS.txt"
+
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Obsidian-Vault-Backup-Windows
-          path: dist/Obsidian-Vault-Backup.exe
+          name: Obsidian-Vault-Backup-v1.0.1-Windows
+          path: |
+            dist/Obsidian-Vault-Backup-v1.0.1-Windows.zip
+            dist/SHA256SUMS.txt
           if-no-files-found: error
 
-      - name: Create v1.0.0 release if missing
+      - name: Create v1.0.1 release if missing
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view v1.0.0 *> $null
+          gh release view v1.0.1 *> $null
           if ($LASTEXITCODE -ne 0) {
-            gh release create v1.0.0 "dist/Obsidian-Vault-Backup.exe#Obsidian-Vault-Backup.exe" --target "${{ github.sha }}" --title "Obsidian Vault Backup v1.0.0" --notes "Prima release pubblica di Obsidian Vault Backup. Include backup Vault verso cartella, ripristino Backup verso Vault, salvataggio dei percorsi, barra di avanzamento, log, annullamento operazione, conferma di sicurezza per il ripristino e build Windows standalone."
+            gh release create v1.0.1 "dist/Obsidian-Vault-Backup-v1.0.1-Windows.zip#Obsidian-Vault-Backup-v1.0.1-Windows.zip" "dist/SHA256SUMS.txt#SHA256SUMS.txt" --target "${{ github.sha }}" --title "Obsidian Vault Backup v1.0.1" --notes "Windows 11 compatibility release. Replaces the self-extracting one-file executable with a portable onedir ZIP, adds a Windows application manifest, product/version metadata, disables UPX, and includes a SHA-256 checksum. This packaging is less likely to trigger antivirus heuristic detections. SmartScreen reputation warnings can still occur until the application is digitally signed or gains reputation."
           }
